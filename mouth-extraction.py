@@ -1,7 +1,10 @@
 import dlib
 import cv2
+import pandas as pd
+import os
 from PIL import Image
 from imutils import face_utils, resize
+import numpy as np
 
 """FACIAL_LANDMARKS_IDXS = OrderedDict([
 	("mouth", (48, 68)),
@@ -18,12 +21,14 @@ p = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(p)
 
-df = pd.DataFrame({'frame': [], 'label': []})
-path = ''
+df = pd.DataFrame({'sequence': [], 'label': []})
+path = './test_videos_fake/'
 label = 0
+video_number = 0
 
 for filename in os.listdir(path):
-    vidcap = cv2.VideoCapture(filename)
+    print("Generating mouths from: {}, video_number: {}".format(filename, video_number))
+    vidcap = cv2.VideoCapture(path + filename)
     success = True
 
     frame_count = 0
@@ -37,6 +42,10 @@ for filename in os.listdir(path):
             break
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         faces = detector(gray, 0)
+
+        sequence_directory = filename[:-4] + '_{}/'.format(frame_sequence)
+        if not os.path.exists('frames_mouths/{}'.format(sequence_directory)): 
+            os.mkdir('frames_mouths/{}'.format(sequence_directory))
 
         largest_face_size = 0
         for (i, face) in enumerate(faces):
@@ -60,12 +69,16 @@ for filename in os.listdir(path):
                     (x, y, w, h) = cv2.boundingRect(np.array([shape[i:j]]))
                     roi = image[y:y + h, x:x + w]
                     roi = cv2.resize(roi, (224,224))
-              frame_file_name = '{}_frame_{}_{}.jpg'.format(filename[:4], frame_sequence, frame_sequence_count)
-              df = df.append({'frame': frame_file_name, 'label': label}, ignore_index=True)
-              cv2.imwrite('frames_mouths/' + frame_file_name, roi)
-              frame_count += 1
-              frame_sequence = int(frame_count / 20)
-              frame_sequence_count = int(frame_count % 20)
+        
+        frame_file_name = 'frame_{}.jpg'.format(frame_sequence_count)
+        cv2.imwrite('frames_mouths/' + sequence_directory + frame_file_name, roi)
+
+        if frame_sequence_count == 19:
+            df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
+
+        frame_count += 1
+        frame_sequence = int(frame_count / 20)
+        frame_sequence_count = int(frame_count % 20)
 
     if os.path.isfile('labels.csv'):
         print("appending to csv")
@@ -73,4 +86,6 @@ for filename in os.listdir(path):
     else:
         print("Creating new csv")
         df.to_csv('labels.csv')
+    
+    video_number += 1
 
