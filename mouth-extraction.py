@@ -22,8 +22,15 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(p)
 
 df = pd.DataFrame({'sequence': [], 'label': []})
-path = './test_videos_fake/'
-label = 0
+#path='test_videos_fake/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/real_new/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/manipulated_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/original_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/validation/manipulated_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/validation/original_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/testing/manipulated_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFiltered/testing/original_sequences/'
+label = 1
 video_number = 0
 
 for filename in os.listdir(path):
@@ -46,6 +53,7 @@ for filename in os.listdir(path):
         sequence_directory = filename[:-4] + '_{}/'.format(frame_sequence)
         if not os.path.exists('frames_mouths/{}'.format(sequence_directory)): 
             os.mkdir('frames_mouths/{}'.format(sequence_directory))
+            df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
 
         largest_face_size = 0
         for (i, face) in enumerate(faces):
@@ -73,19 +81,15 @@ for filename in os.listdir(path):
         frame_file_name = 'frame_{}.jpg'.format(frame_sequence_count)
         cv2.imwrite('frames_mouths/' + sequence_directory + frame_file_name, roi)
 
-        if frame_sequence_count == 19:
-            df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
-
         frame_count += 1
         frame_sequence = int(frame_count / 20)
         frame_sequence_count = int(frame_count % 20)
-
-    if os.path.isfile('labels.csv'):
-        print("appending to csv")
-        df.to_csv('labels.csv', header=None, mode='a')
-    else:
-        print("Creating new csv")
-        df.to_csv('labels.csv')
-    
     video_number += 1
 
+if os.path.isfile('labels.csv'):
+    print("appending to csv")
+    df.to_csv('labels.csv', header=None, mode='a', index=False)
+else:
+    print("Creating new csv")
+    df.to_csv('labels.csv', index=False)
+    
