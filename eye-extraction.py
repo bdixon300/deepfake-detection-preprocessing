@@ -28,7 +28,7 @@ df = pd.DataFrame({'sequence': [], 'label': []})
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/manipulated_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/original_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/validation/manipulated_sequences/'
-#path = '../../dataset/FaceForensicsDatasetMouthFiltered/validation/original_sequences/'
+path = '../../dataset/FaceForensicsDatasetMouthFiltered/validation/original_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/testing/manipulated_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/testing/original_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/training/original_sequences/'
@@ -36,7 +36,7 @@ df = pd.DataFrame({'sequence': [], 'label': []})
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/validation/original_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/validation/manipulated_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/manipulated_sequences/'
-path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/original_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/original_sequences/'
 
 label = 1
 video_number = 1
@@ -65,12 +65,12 @@ for filename in os.listdir(path):
     # 100 - 150
     # 150 - 196
 
-    if  not(video_number < 24 and video_number >= 18):
+    if  not(video_number < 10 and video_number >= 1):
         print("skipping video: {}".format(filename))
         video_number += 1
         continue
 
-    print("Generating mouths from: {}, video_number: {}".format(filename, video_number))
+    print("Generating eyes from: {}, video_number: {}".format(filename, video_number))
     vidcap = cv2.VideoCapture(path + filename)
     success = True
 
@@ -96,8 +96,8 @@ for filename in os.listdir(path):
             frame_sequence_count = int(frame_count % 20)
 
         sequence_directory = filename[:-4] + '_{}/'.format(frame_sequence)
-        if not os.path.exists('frames_mouths/{}'.format(sequence_directory)):
-            os.mkdir('frames_mouths/{}'.format(sequence_directory))
+        if not os.path.exists('frames_eyes/{}'.format(sequence_directory)):
+            os.mkdir('frames_eyes/{}'.format(sequence_directory))
         df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
         df.drop_duplicates(inplace=True)
 
@@ -110,27 +110,27 @@ for filename in os.listdir(path):
             if largest_face_size < size:
                 largest_face_size = size
 
-                # Mouth region uses these indices for dlib
-                (i, j) = (48, 68)
+                # Eye region uses these indices for dlib
+                (i, j) = (36, 48)
                 # clone the original image so we can draw on it, then
                 # display the name of the face part on the image
                 clone = image.copy()
 
                 # loop over the subset of facial landmarks, drawing the
                 # specific face part
-                for (x, y) in shape[i:j]:
+                for (x, y) in shape[i:j]:                    
                     cv2.circle(clone, (x, y), 1, (0, 0, 255), -1)
                     (x, y, w, h) = cv2.boundingRect(np.array([shape[i:j]]))
                     roi = image[y:y + h, x:x + w]
                     roi = cv2.resize(roi, (224,224))
         
         frame_file_name = 'frame_{}.jpg'.format(frame_sequence_count)
-        cv2.imwrite('frames_mouths/' + sequence_directory + frame_file_name, roi)
+        cv2.imwrite('frames_eyes/' + sequence_directory + frame_file_name, roi)
     video_number += 1
 
     # Remove sequences that are not exactly 20 frames in length
     if  frame_sequence_count < 19:
-        shutil.rmtree('frames_mouths/{}'.format(sequence_directory))
+        shutil.rmtree('frames_eyes/{}'.format(sequence_directory))
         df = df.drop(df[df["sequence"] == sequence_directory[:-1]].index)
 
     # Append video sequences to csv
