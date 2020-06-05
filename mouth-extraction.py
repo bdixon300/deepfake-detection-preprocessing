@@ -17,12 +17,16 @@ import shutil
 	("jaw", (0, 17))
 ])"""
 
-
+# Setup and load face detection/facial landmark detection
 p = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(p)
 
+# Setup dataframe for generating csv of labels for sequences/frames
 df = pd.DataFrame({'sequence': [], 'label': []})
+
+# Paths to videos for preprocessing: SET THIS TO THE CORRECT PATH
+path=""
 #path='test_videos_fake/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/real_new/'
 #path = '../../dataset/FaceForensicsDatasetMouthFiltered/training/manipulated_sequences/'
@@ -36,44 +40,27 @@ df = pd.DataFrame({'sequence': [], 'label': []})
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/validation/original_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/validation/manipulated_sequences/'
 #path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/manipulated_sequences/'
-path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/original_sequences/'
+#path = '../../dataset/FaceForensicsDatasetMouthFilteredFull/testing/original_sequences/'
 
+# Label for the sequences in preprocessing, 0 is Fake, whereas 1 is real
 label = 1
 video_number = 1
 
+# Iterate over videos
 for filename in os.listdir(path):
 
-    # Execute preprocessing on one video
-    """if  filename != "11__outside_talking_pan_laughing.mp4":
-        print("skipping video: {}".format(filename))
-        video_number += 1
-        continue"""
-
-    # Skip first videos not in range if required
-    # Training
-    # 1 - 304
-    # 304 - 608
-    # 608 - 916
-
-    # 1 - 35
-    #35 - 70
-    # 70 - 105
-
-    # Validation
-    # 1 - 50
-    # 50 - 100
-    # 100 - 150
-    # 150 - 196
-
+    # Iterate only over select range, so program can be run concurrently, preprocessing selected ranges in the dataset
     if  not(video_number < 24 and video_number >= 18):
         print("skipping video: {}".format(filename))
         video_number += 1
         continue
 
+    # Extract frames
     print("Generating mouths from: {}, video_number: {}".format(filename, video_number))
     vidcap = cv2.VideoCapture(path + filename)
     success = True
 
+    # Counts used to generate filenames for sequences/frames
     frame_count = -1
     frame_sequence = 0
     frame_sequence_count = 0
@@ -84,6 +71,7 @@ for filename in os.listdir(path):
         if not(success) or frame_count >= 720:
             break
 
+        # Extract faces
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         faces = detector(gray, 0)
 
@@ -95,12 +83,14 @@ for filename in os.listdir(path):
             frame_sequence = int(frame_count / 20)
             frame_sequence_count = int(frame_count % 20)
 
+        # Generate sequence directory
         sequence_directory = filename[:-4] + '_{}/'.format(frame_sequence)
         if not os.path.exists('frames_mouths/{}'.format(sequence_directory)):
             os.mkdir('frames_mouths/{}'.format(sequence_directory))
         df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
         df.drop_duplicates(inplace=True)
 
+        # Extract the largest face from the frame
         largest_face_size = 0
         for (i, face) in enumerate(faces):
             # Make the prediction and transfom it to numpy array
@@ -123,7 +113,7 @@ for filename in os.listdir(path):
                     (x, y, w, h) = cv2.boundingRect(np.array([shape[i:j]]))
                     roi = image[y:y + h, x:x + w]
                     roi = cv2.resize(roi, (224,224))
-        
+        # Generate mouth area frame file from extracted face
         frame_file_name = 'frame_{}.jpg'.format(frame_sequence_count)
         cv2.imwrite('frames_mouths/' + sequence_directory + frame_file_name, roi)
     video_number += 1

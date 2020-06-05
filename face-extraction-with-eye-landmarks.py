@@ -9,7 +9,7 @@ import shutil
 
 
 """
-FACIAL_LANDMARKS_IDS
+FACIAL_LANDMARKS_IDXS
 	("mouth", (48, 68)),
 	("right_eyebrow", (17, 22)),
 	("left_eyebrow", (22, 27)),
@@ -25,7 +25,7 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(p)
 
 # Setup dataframe for generating csv of labels for sequences/frames
-df = pd.DataFrame({'sequence': [], 'label': []})
+df = pd.DataFrame({'sequence': [], 'label': [], 'landmarks': []})
 
 # Paths to videos for preprocessing: SET THIS TO THE CORRECT PATH
 path = ""
@@ -51,14 +51,17 @@ for filename in os.listdir(path):
         video_number += 1
         continue
 
+    # Extract frames
+    vidcap = cv2.VideoCapture(path + filename)
+    success = True
+
     # Counts used to generate filenames for sequences/frames
     frame_count = 0
     frame_sequence = 0
     frame_sequence_count = 0
 
-    # Extract frames
-    vidcap = cv2.VideoCapture(path + filename)
-    success = True
+    # Temporary list of eye landmarks to append to csv
+    eye_landmarks = []
 
     while success:
         success,image = vidcap.read()
@@ -76,7 +79,7 @@ for filename in os.listdir(path):
         if not os.path.exists('frames_faces/{}'.format(sequence_directory)): 
             # Create new row
             os.mkdir('frames_faces/{}'.format(sequence_directory))
-            df = df.append({'sequence': sequence_directory[:-1], 'label': label}, ignore_index=True)
+            df = df.append({'sequence': sequence_directory[:-1], 'label': label, 'landmarks': []}, ignore_index=True)
 
         largest_face_size = 0
         largest_shape = []
@@ -92,17 +95,24 @@ for filename in os.listdir(path):
                 largest_face_size = size
                 (x, y, w, h) = face_utils.rect_to_bb(face)
                 face_boundary = image[y:y+h, x:x+w]
-                # Resize to fit VGG16 CNN input
                 roi = cv2.resize(face_boundary, (224,224))
+        # Extract eye landmarks for lstm use
+        eye_landmarks.append(largest_shape[36:48].flatten().tolist())
         
         # Create face area image files
         frame_file_name = 'frame_{}.jpg'.format(frame_sequence_count)
         cv2.imwrite('frames_faces/' + sequence_directory + frame_file_name, roi)
-
+        
         # Update counts
         frame_count += 1
         frame_sequence = int(frame_count / 20)
         frame_sequence_count = int(frame_count % 20)
+
+        # Append eye area data to csv
+        if len(eye_landmarks) == 20:
+            # Add landmark data to dataframe
+            df.at[df.index[-1], 'landmarks'] = eye_landmarks
+            eye_landmarks = []     
 
     video_number += 1
 
@@ -115,9 +125,9 @@ for filename in os.listdir(path):
     if os.path.isfile('labels.csv'):
         print("appending to csv")
         df.to_csv('labels.csv', header=None, mode='a', index=False)
-        df = pd.DataFrame({'sequence': [], 'label': []})
+        df = pd.DataFrame({'sequence': [], 'label': [], 'landmarks': []})
     # Append to new CSV
     else:
         print("Creating new csv")
         df.to_csv('labels.csv', index=False)
-        df = pd.DataFrame({'sequence': [], 'label': []})
+        df = pd.DataFrame({'sequence': [], 'label': [], 'landmarks': []})
